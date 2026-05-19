@@ -1,9 +1,84 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Login(){
 const navigate = useNavigate();
+
+const [email, setEmail] = useState("");
+const [password, setPassword] = useState("");
+const [error, setError] = useState("");
+const [loading, setLoading] = useState(false);
+
+const handleLoginSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+  
+  if (!email || !password) {
+    setError("Please enter both email and password");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const loginRes = await fetch("http://localhost:8000/api/v1/auth/login/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const loginData = await loginRes.json();
+
+    if (!loginRes.ok) {
+      throw new Error(loginData.detail || "Invalid credentials");
+    }
+
+    localStorage.setItem("access_token", loginData.access);
+    localStorage.setItem("refresh_token", loginData.refresh);
+
+    const profileRes = await fetch("http://localhost:8000/api/v1/profiles/me/", {
+      headers: {
+        "Authorization": `Bearer ${loginData.access}`
+      }
+    });
+
+    if (!profileRes.ok) {
+      throw new Error("Failed to fetch user profile context");
+    }
+
+    const profileData = await profileRes.json();
+    console.log("Profile Data API Response:", profileData);
+    
+    // Extract the primary role from the roles array (which contains strings like "School Admin") 
+    // Fallback to "Global Admin" if is_superuser is true
+    const mainRole = (profileData.roles && profileData.roles.length > 0) 
+      ? profileData.roles[0] 
+      : (profileData.is_superuser ? "Global Admin" : "");
+
+    const lowerRole = mainRole.toLowerCase();
+
+    if(lowerRole.includes("global")){
+      navigate("/global-admin");
+    } else if(lowerRole.includes("school")){
+      navigate("/school-admin");
+    } else if(lowerRole.includes("teacher")){
+      navigate("/teacher");
+    } else if(lowerRole.includes("student")){
+      navigate("/student");
+    } else if(lowerRole.includes("parent")){
+      navigate("/parent");
+    } else {
+      // Default fallback
+      navigate("/student");
+    }
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
 const handleRoleLogin = (role) => {
 
@@ -150,7 +225,13 @@ Access your personalized dashboard securely.
 
 {/* FORM */}
 
-<div className="space-y-5">
+<form className="space-y-5" onSubmit={handleLoginSubmit}>
+
+{error && (
+  <div className="bg-red-100 text-red-700 p-3 rounded-md text-sm mb-4">
+    {error}
+  </div>
+)}
 
 <div>
 
@@ -165,6 +246,12 @@ Email
 type="email"
 
 placeholder="Enter your email"
+
+value={email}
+
+onChange={(e) => setEmail(e.target.value)}
+
+required
 
 className="w-full mt-2 px-4 py-3 rounded-md bg-surface-container-low outline-none"
 
@@ -185,7 +272,7 @@ Password
 </label>
 
 
-<span className="text-xs text-primary">
+<span className="text-xs text-primary cursor-pointer hover:underline">
 
 Forgot Password?
 
@@ -199,6 +286,12 @@ Forgot Password?
 type="password"
 
 placeholder="Enter your password"
+
+value={password}
+
+onChange={(e) => setPassword(e.target.value)}
+
+required
 
 className="w-full mt-2 px-4 py-3 rounded-md bg-surface-container-low outline-none"
 
@@ -222,13 +315,17 @@ Remember me
 
 
 
-<button className="w-full py-4 primary-gradient text-white font-bold rounded-md shadow-lg">
+<button 
+  type="submit" 
+  disabled={loading}
+  className="w-full py-4 primary-gradient text-white font-bold rounded-md shadow-lg disabled:opacity-70"
+>
 
-Login
+{loading ? "Logging in..." : "Login"}
 
 </button>
 
-</div>
+</form>
 
 
 
