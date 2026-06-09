@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import SchoolLayout from "../../components/erp/school/SchoolLayout";
+import { schoolAdminApi } from '../../services/schoolAdminApi';
+import ActionMenu from "./ActionMenu";
 
 export default function Students() {
   const navigate = useNavigate();
@@ -17,24 +19,9 @@ export default function Students() {
   const fetchStudents = async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const baseUrl = import.meta.env?.VITE_API_BASE_URL || process.env?.REACT_APP_API_BASE_URL;
-      const token = localStorage.getItem("accessToken");
-
-      const response = await fetch(`${baseUrl}v1/profiles/students/`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Accept": "application/json"
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch student directory.");
-      }
-
-      const data = await response.json();
+      // Clean, production-ready call
+      const data = await schoolAdminApi.getStudents();
       
       // Handle DRF pagination structure
       if (data.results) {
@@ -46,7 +33,7 @@ export default function Students() {
       }
     } catch (err) {
       console.error("Fetch Students Error:", err);
-      setError(err.message);
+      setError(err.response?.data?.detail || "Failed to fetch student directory.");
     } finally {
       setLoading(false);
     }
@@ -189,9 +176,7 @@ export default function Students() {
                       </td>
 
                       <td className="text-right pr-6">
-                        <button className="text-[#0058be] hover:bg-[#e5eeff] p-2 rounded-full transition-colors">
-                          <span className="material-symbols-outlined text-[20px]">more_vert</span>
-                        </button>
+                        <ActionMenu studentId={s.id} />
                       </td>
                     </tr>
                   ))
